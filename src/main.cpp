@@ -5,6 +5,10 @@
 #include <pins.h>
 #include <IS32FL3236A.h>
 #include <IWatchdog.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <FRAM.h>
+// include all libaries needed
 
 void SystemClock_Config(void)
 {
@@ -47,39 +51,71 @@ void SystemClock_Config(void)
   HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_SYSCLK, RCC_MCODIV_1);
 }
 
-volatile uint16_t buffer[6];          // ADC BUFFER
-volatile bool adc_new_data_ready = 0; // ADC DATA READY
-volatile bool convert_adc = 0;        // Convert ADC every 500mS
+volatile uint16_t buffer[6];          // adc buffer for dma
+volatile bool adc_new_data_ready = 0; // flag if new adc data is ready
 
-uint16_t vrefanalog = 0;  // ANALOG VREF VOLTAGE IN mV
-uint16_t mcu_temp = 0;    // CPU TEMP
-int16_t board_temp = 0;   // BOARD TEMP IN MILIDEGREE
-uint16_t cap_voltage = 0; // CAP VOLTAGE IN MILIDEGREE
-uint16_t ign_voltage = 0; // CAP VOLTAGE IN MILIDEGREE
-uint16_t resistance = 0;  // RESISTANCE CALULATED ROM MESUREMNT CIRCUIT IN MILIOHM
+uint16_t vrefanalog = 0;  // analog vcc converted from internal refrence
+uint16_t mcu_temp = 0;    // cpu temp
+int16_t board_temp = 0;   // board temo in m°C
+uint16_t cap_voltage = 0; // capacitor voltage in mV
+uint16_t ign_voltage = 0; // ignition node voltage in mV
+uint16_t resistance = 0;  // resitance of a channle in mOhm
 
-int test = 0;
+bool adc_ok = 0; // flag if adc is starded sucsefully
+bool led_driver_ok = 0; // flag if led driver is okay
+bool fram_ok = 0; // flag if fram is okay
+bool oled_ok = 0; // flag if oled is okay
+
+
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
-Neotimer adcTimer = Neotimer();
-Neotimer uartTimer = Neotimer();
 TwoWire sensor_i2c(SENSOR_SDA, SENSOR_SCL);
-TwoWire oled_i2c(SENSOR_SDA, SENSOR_SCL);
-IS32FL3236A channel_leds(0x3C, SDB, &sensor_i2c);
+TwoWire oled_i2c(OLED_SDA, OLED_SCL);
+IS32FL3236A channel_leds(LED_DRIVER_ADDRESS, SDB, &sensor_i2c);
+Adafruit_SSD1306 display(128, 64, &oled_i2c, -1);
+HardwareSerial RS485_1(RS485_1_RX, RS485_1_TX);
+HardwareSerial RS485_2(RS485_2_RX, RS485_2_TX);
+HardwareSerial BAT_SERIAL(BATTERY_RX, BATTERY_TX);
+HardwareSerial EXP_SERIAL(EXPANSION_RX, EXPANSION_TX);
+FRAM9 fram;
 
-void timer_10ms();
-void timer_500ms();
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 void convertADC();
 int16_t adcToTemperature(uint16_t adcValue);
-void togglePin(char input);
+void setup_gpio();
+void setup_pheripherals();
 
 void setup()
 {
   IWatchdog.begin(8000000); // WATCHDOG TIMER IS STILL TO LONG NEED TO BE CHANGED
+  IWatchdog.reload();
 
+  setup_gpio();
+  setup_pheripherals();
+}
+
+void loop()
+{
+  IWatchdog.reload();
+}
+
+void convertADC()
+{
+  if (adc_new_data_ready == 1)
+  {
+    vrefanalog = __HAL_ADC_CALC_VREFANALOG_VOLTAGE(buffer[0], ADC_RESOLUTION_12B);
+    mcu_temp = __HAL_ADC_CALC_TEMPERATURE(vrefanalog, buffer[5], ADC_RESOLUTION_12B);
+    board_temp = adcToTemperature(buffer[4]);
+    cap_voltage = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[3], ADC_RESOLUTION_12B) * 11;
+    ign_voltage = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[1], ADC_RESOLUTION_12B) * 11;
+    resistance = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[2], ADC_RESOLUTION_12B) / 2 * 100;
+    adc_new_data_ready = 0;
+  }
+}
+void setup_gpio()
+{
   pinMode(TEST_LED, OUTPUT);
   pinMode(CAP_SW, OUTPUT);
   pinMode(IGN_SW1, OUTPUT);
@@ -87,6 +123,31 @@ void setup()
   pinMode(CAP_DIS, OUTPUT);
 
   pinMode(CH1, OUTPUT);
+  pinMode(CH2, OUTPUT);
+  pinMode(CH3, OUTPUT);
+  pinMode(CH4, OUTPUT);
+  pinMode(CH5, OUTPUT);
+  pinMode(CH6, OUTPUT);
+  pinMode(CH7, OUTPUT);
+  pinMode(CH8, OUTPUT);
+  pinMode(CH9, OUTPUT);
+  pinMode(CH10, OUTPUT);
+  pinMode(CH11, OUTPUT);
+  pinMode(CH12, OUTPUT);
+  pinMode(CH13, OUTPUT);
+  pinMode(CH14, OUTPUT);
+  pinMode(CH15, OUTPUT);
+  pinMode(CH16, OUTPUT);
+
+  pinMode(RS485_1_DIR, OUTPUT);
+  pinMode(RS485_2_DIR, OUTPUT);
+
+  pinMode(OE_LVL, OUTPUT);
+  pinMode(NRST_BAT, OUTPUT);
+  pinMode(BOOT0_BAT, OUTPUT);
+
+  pinMode(NRF24_ON, OUTPUT);
+  pinMode(NRF24_FLG, INPUT);
 
   digitalWrite(CAP_SW, LOW);
   digitalWrite(IGN_SW1, LOW);
@@ -94,122 +155,100 @@ void setup()
   digitalWrite(CAP_DIS, LOW);
 
   digitalWrite(CH1, LOW);
+  digitalWrite(CH2, LOW);
+  digitalWrite(CH3, LOW);
+  digitalWrite(CH4, LOW);
+  digitalWrite(CH5, LOW);
+  digitalWrite(CH6, LOW);
+  digitalWrite(CH7, LOW);
+  digitalWrite(CH8, LOW);
+  digitalWrite(CH9, LOW);
+  digitalWrite(CH10, LOW);
+  digitalWrite(CH11, LOW);
+  digitalWrite(CH12, LOW);
+  digitalWrite(CH13, LOW);
+  digitalWrite(CH14, LOW);
+  digitalWrite(CH15, LOW);
+  digitalWrite(CH16, LOW);
 
+  digitalWrite(RS485_1_DIR, LOW);
+  digitalWrite(RS485_2_DIR, LOW);
+
+  digitalWrite(OE_LVL, LOW);
+  digitalWrite(NRST_BAT, HIGH);
+  digitalWrite(BOOT0_BAT, LOW);
+
+  digitalWrite(NRF24_ON, LOW);
+}
+void setup_pheripherals()
+{
   SerialUSB.begin(115200);
+  RS485_1.begin(19200);
+  RS485_2.begin(19200);
+  BAT_SERIAL.begin(38400);
+  EXP_SERIAL.begin(38400);
 
-  channel_leds.begin();
-  channel_leds.sleep(0);
-  channel_leds.setFrequency(1);
-  channel_leds.clear();
-  channel_leds.update();
-
-  for (int i = 0; i < 32; i++)
+  if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS) == 0)
   {
-    channel_leds.setLedParam(i, IS32FL3236A_IMAX, 1);
-    channel_leds.setLedPwm(i, 0);
+    display.clearDisplay();
+    display.display();
+    oled_ok = 1;
   }
-  channel_leds.update();
+  else
+  {
+    oled_ok = 0;
+  }
+  
+
+  if (channel_leds.begin() == 1)
+  {
+    channel_leds.sleep(0);
+    channel_leds.setFrequency(1);
+    channel_leds.clear();
+    channel_leds.update();
+
+    for (int i = 0; i < 32; i++)
+    {
+      channel_leds.setLedParam(i, IS32FL3236A_IMAX, 1);
+      channel_leds.setLedPwm(i, 0);
+    }
+    channel_leds.update();
+
+    led_driver_ok = 1;
+  }
+  else
+  {
+    led_driver_ok = 0;
+  }
+  
+
+  if (fram.begin(FRAM_ADDRESS, FRAM_WP) == 0)
+  {
+    fram_ok = 1;
+  }
+  else
+  {
+    fram_ok = 0;
+  }
 
   MX_DMA_Init();
   MX_ADC1_Init();
 
   if (HAL_ADCEx_Calibration_Start(&hadc1) == HAL_OK)
   {
-    SerialUSB.println("*CALOK074*");
+    adc_ok = 1;
   }
   else
   {
-    SerialUSB.println("*CALF008");
+    adc_ok = 0;
   }
   if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)buffer, 6) == HAL_OK)
   {
-    SerialUSB.println("*CONVOK016*");
+    adc_ok = 1;
   }
   else
   {
-    SerialUSB.println("*CONVF082*");
-  }
-
-  adcTimer.set(10);
-  uartTimer.set(500);
-}
-
-void loop()
-{
-  timer_10ms();
-  timer_500ms();
-  convertADC();
-  IWatchdog.reload();
-
-  // Check for SerialUSB input
-  if (SerialUSB.available() > 0)
-  {
-    char input = SerialUSB.read();
-    togglePin(input);
-  }
-}
-
-void togglePin(char input)
-{
-  switch (input)
-  {
-  case '1':
-    digitalToggle(CAP_SW);
-    break;
-  case '2':
-    digitalToggle(IGN_SW1);
-    break;
-  case '3':
-    digitalToggle(IGN_SW2);
-    break;
-  case '4':
-    digitalToggle(CAP_DIS);
-    break;
-  default:
-    SerialUSB.println("Invalid input. Please enter a number between 1 and 4.");
-    break;
-  }
-}
-
-void convertADC()
-{
-  if (adc_new_data_ready == 1 && convert_adc == 1)
-  {
-    vrefanalog = __HAL_ADC_CALC_VREFANALOG_VOLTAGE(buffer[0], ADC_RESOLUTION_12B);
-    mcu_temp = __HAL_ADC_CALC_TEMPERATURE(vrefanalog, buffer[5], ADC_RESOLUTION_12B);
-    board_temp = adcToTemperature(buffer[4]);
-    cap_voltage = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[3], ADC_RESOLUTION_12B) * 11;
-    ign_voltage = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[1], ADC_RESOLUTION_12B) * 11;
-    resistance = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[2], ADC_RESOLUTION_12B) / 2;
-    adc_new_data_ready = 0;
-  }
-}
-
-void timer_10ms()
-{
-  if (adcTimer.repeat())
-  {
-    convert_adc = 1;
-  }
-}
-void timer_500ms()
-{
-  if (uartTimer.repeat())
-  {
-    SerialUSB.println("*********************************");
-    SerialUSB.print("VREF:");
-    SerialUSB.println(vrefanalog);
-    SerialUSB.print("MCU TEMP:");
-    SerialUSB.println(mcu_temp);
-    SerialUSB.print("BOARD TEMP:");
-    SerialUSB.println(board_temp);
-    SerialUSB.print("CAP VOLTAGE:");
-    SerialUSB.println(cap_voltage);
-    SerialUSB.print("IGN VOLTAGE:");
-    SerialUSB.println(ign_voltage);
-    SerialUSB.print("RESISTANCE:");
-    SerialUSB.println(resistance);
-    SerialUSB.println("*********************************");
+    adc_ok = 0;
   }
 }
 static void MX_ADC1_Init(void)
@@ -425,20 +464,20 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 }
 int16_t adcToTemperature(uint16_t adcValue)
 {
-  // Calculate the resistance of the NTC thermistor
+  // calculate the resistance of the NTC thermistor
   float resistance = 10000 * ((float)adcValue / (4096 - adcValue));
 
-  // Calculate the temperature in Kelvin using the Beta parameter equation
+  // calculate the temperature in Kelvin using the Beta parameter equation
   float temperatureK = 1 / (log(resistance / 10000) / 3950 + 1 / 298.15); // 298.15K is 25°C
 
-  // Convert the temperature from Kelvin to Celsius
+  // convert the temperature from Kelvin to Celsius
   float temperatureC = temperatureK - 273.15;
 
-  // Round the temperature to the nearest 0.5°C
+  // round the temperature to the nearest 0.5°C
   float roundedTemperatureC = round(temperatureC * 2) / 2.0;
 
-  // Convert the temperature to an int16_t
-  int16_t temperatureInt = (int16_t)(roundedTemperatureC * 10); // Multiply by 10 to preserve the .5 precision
+  // convert the temperature to an int16_t
+  int16_t temperatureInt = (int16_t)(roundedTemperatureC * 10); // multiply by 10 to preserve the .5 precision
 
-  return temperatureInt;
+  return temperatureInt; // return value
 }
