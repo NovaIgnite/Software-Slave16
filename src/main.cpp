@@ -60,12 +60,21 @@ uint16_t mcu_temp = 0;    // cpu temp
 int16_t board_temp = 0;   // board temo in m°C
 uint16_t cap_voltage = 0; // capacitor voltage in mV
 uint16_t ign_voltage = 0; // ignition node voltage in mV
-uint16_t resistance = 0;  // resitance of a channle in mOhm
+uint32_t resistance = 0;  // resitance of a channle in mOhm
 
 bool adc_ok = 0;        // flag if adc is starded sucsefully
 bool led_driver_ok = 0; // flag if led driver is okay
 bool fram_ok = 0;       // flag if fram is okay
 bool oled_ok = 0;       // flag if oled is okay
+
+uint8_t channel_pins[16] = {CH1, CH2, CH3, CH4, CH5, CH6, CH7, CH8, CH9, CH10, CH11, CH12, CH13, CH14, CH15, CH16};
+uint32_t channel_res[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+uint32_t channel_res_avg[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+uint16_t channel_counter_res = 0;
+uint16_t avg_counter_res = 0;
+uint8_t channel_ignitbale[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+bool channel_needed[16] = {1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1};
+bool channel_pop_unused[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
@@ -80,6 +89,7 @@ HardwareSerial EXP_SERIAL(EXPANSION_RX, EXPANSION_TX);
 FRAM9 fram;
 IS32FL3236A led_driver(LED_DRIVER_ADDRESS, SDB, &sensor_i2c);
 channel_led leds16(&led_driver);
+Neotimer resistance_timer(5);
 
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
@@ -87,6 +97,10 @@ void convertADC();
 int16_t adcToTemperature(uint16_t adcValue);
 void setup_gpio();
 void setup_pheripherals();
+void calculate_resistance();
+void check_ignitable();
+void setChannelLedsRes();
+
 
 void setup()
 {
@@ -100,6 +114,7 @@ void setup()
 void loop()
 {
   IWatchdog.reload();
+  calculate_resistance();
 }
 
 void convertADC()
@@ -189,14 +204,13 @@ void setup_pheripherals()
   BAT_SERIAL.begin(38400);
   EXP_SERIAL.begin(38400);
 
-  leds16.begin();
-  leds16.setLedBrightness(1.0);
-  leds16.clearAll();
-  leds16.setSleep(0);
-
-  leds16.setLEDState(0,LED_RED);
-  leds16.setLEDState(4,LED_GREEN);
-  leds16.setLEDState(8,LED_YELLOW);
+  if (leds16.begin() == 0)
+  {
+    leds16.setLedBrightness(1.00);
+    leds16.clearAll();
+    leds16.setSleep(0);
+    led_driver_ok = 1;
+  }
 
   if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS) == 0)
   {
@@ -467,4 +481,90 @@ int16_t adcToTemperature(uint16_t adcValue)
   int16_t temperatureInt = (int16_t)(roundedTemperatureC * 10); // multiply by 10 to preserve the .5 precision
 
   return temperatureInt; // return value
+}
+void calculate_resistance()
+{
+  if (resistance_timer.repeat())
+  {
+    if (channel_counter_res < 16)
+    {
+      digitalWrite(channel_pins[channel_counter_res], HIGH);
+      convertADC();
+      if (avg_counter_res < 6)
+      {
+        if (avg_counter_res > 0)
+        {
+          channel_res_avg[channel_counter_res] = resistance + channel_res_avg[channel_counter_res];
+        }
+        avg_counter_res++;
+      }
+      else
+      {
+        avg_counter_res = 0;
+        digitalWrite(channel_pins[channel_counter_res], LOW);
+        channel_counter_res++;
+      }
+    }
+    else
+    {
+      channel_counter_res = 0;
+      for (int i = 0; i < 16; i++)
+      {
+        channel_res[i] = channel_res_avg[i] / 5;
+        channel_res_avg[i] = 0;
+        SerialUSB.printf("CHANNEL %u RESISTANCE: %u mOhm IGNITABLE: %u \r\n", i, channel_res[i], channel_ignitbale[i]);
+      }
+      check_ignitable();
+      setChannelLedsRes();
+    }
+  }
+}
+void check_ignitable()
+{
+  for (int i = 0; i < 16; i++)
+  {
+    if (channel_res[i] < 14000 && channel_res[i] > 125)
+    {
+      channel_ignitbale[i] = 1;
+    }
+    else
+    {
+      channel_ignitbale[i] = 0;
+    }
+    if (channel_res[i] > 100000)
+    {
+      channel_ignitbale[i] = 2;
+    }
+  }
+}
+void setChannelLedsRes()
+{
+  if (led_driver_ok == 1)
+  {
+    for (int i = 0; i < 16; i++)
+    {
+      if (channel_needed[i] == 1)
+      {
+        switch (channel_ignitbale[i])
+        {
+        case 0:
+          leds16.setLEDState(i, LED_RED);
+          break;
+        case 1:
+          leds16.setLEDState(i, LED_GREEN);
+          break;
+        case 2:
+          leds16.setLEDState(i, LED_YELLOW);
+          break;
+        default:
+          leds16.setLEDState(i, LED_OFF);
+          break;
+        }
+      }
+      else
+      {
+        leds16.setLEDState(i, LED_OFF);
+      }
+    }
+  }
 }
