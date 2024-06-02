@@ -8,6 +8,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <FRAM.h>
+#include <channel_led.h>
 // include all libaries needed
 
 void SystemClock_Config(void)
@@ -61,12 +62,10 @@ uint16_t cap_voltage = 0; // capacitor voltage in mV
 uint16_t ign_voltage = 0; // ignition node voltage in mV
 uint16_t resistance = 0;  // resitance of a channle in mOhm
 
-bool adc_ok = 0; // flag if adc is starded sucsefully
+bool adc_ok = 0;        // flag if adc is starded sucsefully
 bool led_driver_ok = 0; // flag if led driver is okay
-bool fram_ok = 0; // flag if fram is okay
-bool oled_ok = 0; // flag if oled is okay
-
-
+bool fram_ok = 0;       // flag if fram is okay
+bool oled_ok = 0;       // flag if oled is okay
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
@@ -79,6 +78,8 @@ HardwareSerial RS485_2(RS485_2_RX, RS485_2_TX);
 HardwareSerial BAT_SERIAL(BATTERY_RX, BATTERY_TX);
 HardwareSerial EXP_SERIAL(EXPANSION_RX, EXPANSION_TX);
 FRAM9 fram;
+IS32FL3236A led_driver(LED_DRIVER_ADDRESS, SDB, &sensor_i2c);
+channel_led leds16(&led_driver);
 
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
@@ -188,6 +189,15 @@ void setup_pheripherals()
   BAT_SERIAL.begin(38400);
   EXP_SERIAL.begin(38400);
 
+  leds16.begin();
+  leds16.setLedBrightness(1.0);
+  leds16.clearAll();
+  leds16.setSleep(0);
+
+  leds16.setLEDState(0,LED_RED);
+  leds16.setLEDState(4,LED_GREEN);
+  leds16.setLEDState(8,LED_YELLOW);
+
   if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS) == 0)
   {
     display.clearDisplay();
@@ -198,29 +208,6 @@ void setup_pheripherals()
   {
     oled_ok = 0;
   }
-  
-
-  if (channel_leds.begin() == 1)
-  {
-    channel_leds.sleep(0);
-    channel_leds.setFrequency(1);
-    channel_leds.clear();
-    channel_leds.update();
-
-    for (int i = 0; i < 32; i++)
-    {
-      channel_leds.setLedParam(i, IS32FL3236A_IMAX, 1);
-      channel_leds.setLedPwm(i, 0);
-    }
-    channel_leds.update();
-
-    led_driver_ok = 1;
-  }
-  else
-  {
-    led_driver_ok = 0;
-  }
-  
 
   if (fram.begin(FRAM_ADDRESS, FRAM_WP) == 0)
   {
