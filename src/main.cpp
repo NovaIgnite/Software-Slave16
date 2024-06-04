@@ -9,6 +9,7 @@
 #include <Adafruit_SSD1306.h>
 #include <FRAM.h>
 #include <channel_led.h>
+#include <resistance_control16.h>
 // include all libaries needed
 
 void SystemClock_Config(void)
@@ -53,34 +54,18 @@ void SystemClock_Config(void)
 }
 
 volatile uint16_t buffer[6];          // adc buffer for dma
-volatile bool adc_new_data_ready = 0; // flag if new adc data is ready
 
 uint16_t vrefanalog = 0;  // analog vcc converted from internal refrence
 uint16_t mcu_temp = 0;    // cpu temp
-int16_t board_temp = 0;   // board temo in m°C
+int16_t board_temp = 0;   // board temp in m°C
 uint16_t cap_voltage = 0; // capacitor voltage in mV
 uint16_t ign_voltage = 0; // ignition node voltage in mV
-uint32_t resistance = 0;  // resitance of a channle in mOhm
 
 bool adc_ok = 0;        // flag if adc is starded sucsefully
-bool led_driver_ok = 0; // flag if led driver is okay
 bool fram_ok = 0;       // flag if fram is okay
 bool oled_ok = 0;       // flag if oled is okay
 
-uint8_t channel_pins[16] = {CH1, CH2, CH3, CH4, CH5, CH6, CH7, CH8, CH9, CH10, CH11, CH12, CH13, CH14, CH15, CH16};
-uint32_t channel_res[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-uint32_t channel_res_avg[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-uint16_t channel_counter_res = 0;
-uint16_t avg_counter_res = 0;
-uint8_t channel_ignitbale[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-uint8_t channel_pop_unused[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 bool channel_needed[16] = {1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1};
-bool led_blink_helper = 0;
-
-unsigned long startTime;
-unsigned long endTime;
-unsigned long elapsedTime;
-bool once = 0;
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
@@ -95,8 +80,8 @@ HardwareSerial EXP_SERIAL(EXPANSION_RX, EXPANSION_TX);
 FRAM9 fram;
 IS32FL3236A led_driver(LED_DRIVER_ADDRESS, SDB, &sensor_i2c);
 channel_led leds16(&led_driver);
+resistance_control res16(&leds16,channel_pins,&buffer[2],&buffer[0]);
 Neotimer resistance_timer(6);
-Neotimer led_blink_timer(250);
 
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
@@ -104,10 +89,6 @@ void convertADC();
 int16_t adcToTemperature(uint16_t adcValue);
 void setup_gpio();
 void setup_pheripherals();
-void calculate_resistance();
-void check_ignitable();
-void setChannelLEDsRes();
-void blinkLEDsRes();
 
 void setup()
 {
@@ -116,26 +97,25 @@ void setup()
 
   setup_gpio();
   setup_pheripherals();
+
+  res16.setUsed(channel_needed);
+
 }
 
 void loop()
 {
   IWatchdog.reload();
-  calculate_resistance();
+  res16.handler();
 }
 
 void convertADC()
 {
-  if (adc_new_data_ready == 1)
-  {
     vrefanalog = __HAL_ADC_CALC_VREFANALOG_VOLTAGE(buffer[0], ADC_RESOLUTION_12B);
     mcu_temp = __HAL_ADC_CALC_TEMPERATURE(vrefanalog, buffer[5], ADC_RESOLUTION_12B);
     board_temp = adcToTemperature(buffer[4]);
     cap_voltage = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[3], ADC_RESOLUTION_12B) * 11;
     ign_voltage = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[1], ADC_RESOLUTION_12B) * 11;
-    resistance = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[2], ADC_RESOLUTION_12B) / 2 * 100;
-    adc_new_data_ready = 0;
-  }
+    
 }
 void setup_gpio()
 {
@@ -211,13 +191,7 @@ void setup_pheripherals()
   BAT_SERIAL.begin(38400);
   EXP_SERIAL.begin(38400);
 
-  if (leds16.begin() == 0)
-  {
-    leds16.setLedBrightness(1.00);
-    leds16.clearAll();
-    leds16.setSleep(0);
-    led_driver_ok = 1;
-  }
+  res16.init();
 
   if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS) == 1)
   {
@@ -466,10 +440,6 @@ extern "C" void DMA1_Channel1_IRQHandler(void)
 
   /* USER CODE END DMA1_Channel1_IRQn 1 */
 }
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
-{
-  adc_new_data_ready = 1;
-}
 int16_t adcToTemperature(uint16_t adcValue)
 {
   // calculate the resistance of the NTC thermistor
@@ -488,121 +458,4 @@ int16_t adcToTemperature(uint16_t adcValue)
   int16_t temperatureInt = (int16_t)(roundedTemperatureC * 10); // multiply by 10 to preserve the .5 precision
 
   return temperatureInt; // return value
-}
-void calculate_resistance()
-{
-  if (resistance_timer.repeat())
-  {
-    if (channel_counter_res < 16)
-    {
-      digitalWrite(channel_pins[channel_counter_res], HIGH);
-      convertADC();
-      if (avg_counter_res < 6)
-      {
-        if (avg_counter_res > 0)
-        {
-          channel_res_avg[channel_counter_res] = resistance + channel_res_avg[channel_counter_res];
-        }
-        avg_counter_res++;
-      }
-      else
-      {
-        avg_counter_res = 0;
-        digitalWrite(channel_pins[channel_counter_res], LOW);
-        channel_counter_res++;
-      }
-    }
-    else
-    {
-      channel_counter_res = 0;
-      for (int i = 0; i < 16; i++)
-      {
-        channel_res[i] = channel_res_avg[i] / 5;
-        channel_res_avg[i] = 0;
-      }
-      check_ignitable();
-      setChannelLEDsRes();
-      blinkLEDsRes();
-    }
-  }
-}
-void check_ignitable()
-{
-  for (int i = 0; i < 16; i++)
-  {
-    if (channel_res[i] < 14000 && channel_res[i] > 125)
-    {
-      channel_ignitbale[i] = 1;
-    }
-    else
-    {
-      channel_ignitbale[i] = 0;
-    }
-    if (channel_res[i] > 100000)
-    {
-      channel_ignitbale[i] = 2;
-    }
-  }
-}
-void setChannelLEDsRes()
-{
-  if (led_driver_ok == 1)
-  {
-    for (int i = 0; i < 16; i++)
-    {
-      if (channel_needed[i] == 1)
-      {
-        switch (channel_ignitbale[i])
-        {
-        case 0:
-          leds16.setLEDState(i, LED_RED);
-          break;
-        case 1:
-          leds16.setLEDState(i, LED_GREEN);
-          break;
-        case 2:
-          leds16.setLEDState(i, LED_YELLOW);
-          break;
-        default:
-          leds16.setLEDState(i, LED_OFF);
-          break;
-        }
-        channel_pop_unused[i] = 3;
-      }
-      else
-      {
-        channel_pop_unused[i] = channel_ignitbale[i];
-      }
-    }
-  }
-}
-void blinkLEDsRes()
-{
-  led_blink_helper = !led_blink_helper;
-
-  for (int i = 0; i < 16; i++)
-  {
-    if (led_blink_helper == 0)
-    {
-      if (channel_pop_unused[i] == 0 || channel_pop_unused[i] == 1)
-      {
-        leds16.setLEDState(i, LED_OFF);
-      }
-    }
-    if (led_blink_helper == 1)
-    {
-      if (channel_pop_unused[i] == 0)
-      {
-        leds16.setLEDState(i, LED_RED);
-      }
-      if (channel_pop_unused[i] == 1)
-      {
-        leds16.setLEDState(i, LED_GREEN);
-      }
-    }
-    if (channel_pop_unused[i] == 2)
-    {
-      leds16.setLEDState(i, LED_OFF);
-    }
-  }
 }
