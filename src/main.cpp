@@ -65,7 +65,7 @@ bool adc_ok = 0;        // flag if adc is starded sucsefully
 bool fram_ok = 0;       // flag if fram is okay
 bool oled_ok = 0;       // flag if oled is okay
 
-bool channel_needed[16] = {1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1};
+bool channel_needed_empty[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
@@ -98,7 +98,8 @@ void setup()
   setup_gpio();
   setup_pheripherals();
 
-  res16.setUsed(channel_needed);
+  res16.setUsed(channel_needed_empty);
+  res16.setBlink(1);
 
 }
 
