@@ -73,8 +73,14 @@ uint32_t channel_res_avg[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 uint16_t channel_counter_res = 0;
 uint16_t avg_counter_res = 0;
 uint8_t channel_ignitbale[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+uint8_t channel_pop_unused[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 bool channel_needed[16] = {1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1};
-bool channel_pop_unused[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+bool led_blink_helper = 0;
+
+unsigned long startTime;
+unsigned long endTime;
+unsigned long elapsedTime;
+bool once = 0;
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
@@ -89,7 +95,8 @@ HardwareSerial EXP_SERIAL(EXPANSION_RX, EXPANSION_TX);
 FRAM9 fram;
 IS32FL3236A led_driver(LED_DRIVER_ADDRESS, SDB, &sensor_i2c);
 channel_led leds16(&led_driver);
-Neotimer resistance_timer(5);
+Neotimer resistance_timer(6);
+Neotimer led_blink_timer(250);
 
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
@@ -99,8 +106,8 @@ void setup_gpio();
 void setup_pheripherals();
 void calculate_resistance();
 void check_ignitable();
-void setChannelLedsRes();
-
+void setChannelLEDsRes();
+void blinkLEDsRes();
 
 void setup()
 {
@@ -212,7 +219,7 @@ void setup_pheripherals()
     led_driver_ok = 1;
   }
 
-  if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS) == 0)
+  if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS) == 1)
   {
     display.clearDisplay();
     display.display();
@@ -512,10 +519,10 @@ void calculate_resistance()
       {
         channel_res[i] = channel_res_avg[i] / 5;
         channel_res_avg[i] = 0;
-        SerialUSB.printf("CHANNEL %u RESISTANCE: %u mOhm IGNITABLE: %u \r\n", i, channel_res[i], channel_ignitbale[i]);
       }
       check_ignitable();
-      setChannelLedsRes();
+      setChannelLEDsRes();
+      blinkLEDsRes();
     }
   }
 }
@@ -537,7 +544,7 @@ void check_ignitable()
     }
   }
 }
-void setChannelLedsRes()
+void setChannelLEDsRes()
 {
   if (led_driver_ok == 1)
   {
@@ -560,11 +567,42 @@ void setChannelLedsRes()
           leds16.setLEDState(i, LED_OFF);
           break;
         }
+        channel_pop_unused[i] = 3;
       }
       else
       {
+        channel_pop_unused[i] = channel_ignitbale[i];
+      }
+    }
+  }
+}
+void blinkLEDsRes()
+{
+  led_blink_helper = !led_blink_helper;
+
+  for (int i = 0; i < 16; i++)
+  {
+    if (led_blink_helper == 0)
+    {
+      if (channel_pop_unused[i] == 0 || channel_pop_unused[i] == 1)
+      {
         leds16.setLEDState(i, LED_OFF);
       }
+    }
+    if (led_blink_helper == 1)
+    {
+      if (channel_pop_unused[i] == 0)
+      {
+        leds16.setLEDState(i, LED_RED);
+      }
+      if (channel_pop_unused[i] == 1)
+      {
+        leds16.setLEDState(i, LED_GREEN);
+      }
+    }
+    if (channel_pop_unused[i] == 2)
+    {
+      leds16.setLEDState(i, LED_OFF);
     }
   }
 }
