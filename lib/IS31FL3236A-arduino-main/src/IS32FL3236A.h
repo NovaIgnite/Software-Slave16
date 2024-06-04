@@ -15,15 +15,15 @@ class IS32FL3236A{
     public:
         explicit  IS32FL3236A(uint8_t deviceAdress, uint8_t sdb_pin, TwoWire *wire = &Wire);
         bool begin();
-        void blank(bool on = 0);
-        void sleep(bool on);
+        bool blank(bool on = 0);
+        bool sleep(bool on);
         bool isConnected();
-        void setLedPwm(uint8_t lednum, byte brightness);
-        void setLedParam(uint8_t lednum, uint8_t current, bool enabled);
-        void clear();
-        void update();
-        void setFrequency(bool high);
-        void reset();
+        bool setLedPwm(uint8_t lednum, byte brightness);
+        bool setLedParam(uint8_t lednum, uint8_t current, bool enabled);
+        bool clear();
+        bool update();
+        bool setFrequency(bool high);
+        bool reset();
         uint8_t gamma64(uint8_t input);
 
 
@@ -33,7 +33,7 @@ class IS32FL3236A{
         uint8_t _data;
         int      _error;
         TwoWire* _wire;
-        uint8_t writeReg(uint8_t reg, uint8_t value);
+        bool writeReg(uint8_t reg, uint8_t value);
         uint8_t gamma64_table[64] = {0,1,2,3,4,5,6,7,8,10,12,14,16,18,20,22,24,26,29,32,35,38,41,44,47,50,53,57,61,65,69,73,77,81,85,89,94,99,104,109,114,119,124,129,134,140,146,152,158,164,170,176,182,188,195,202,209,216,223,230,237,244,251,255};
 };
 

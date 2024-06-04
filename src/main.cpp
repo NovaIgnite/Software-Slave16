@@ -8,6 +8,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <FRAM.h>
+#include <channel_led.h>
+#include <resistance_control16.h>
 // include all libaries needed
 
 void SystemClock_Config(void)
@@ -52,21 +54,18 @@ void SystemClock_Config(void)
 }
 
 volatile uint16_t buffer[6];          // adc buffer for dma
-volatile bool adc_new_data_ready = 0; // flag if new adc data is ready
 
 uint16_t vrefanalog = 0;  // analog vcc converted from internal refrence
 uint16_t mcu_temp = 0;    // cpu temp
-int16_t board_temp = 0;   // board temo in m°C
+int16_t board_temp = 0;   // board temp in m°C
 uint16_t cap_voltage = 0; // capacitor voltage in mV
 uint16_t ign_voltage = 0; // ignition node voltage in mV
-uint16_t resistance = 0;  // resitance of a channle in mOhm
 
-bool adc_ok = 0; // flag if adc is starded sucsefully
-bool led_driver_ok = 0; // flag if led driver is okay
-bool fram_ok = 0; // flag if fram is okay
-bool oled_ok = 0; // flag if oled is okay
+bool adc_ok = 0;        // flag if adc is starded sucsefully
+bool fram_ok = 0;       // flag if fram is okay
+bool oled_ok = 0;       // flag if oled is okay
 
-
+bool channel_needed_empty[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
@@ -79,6 +78,10 @@ HardwareSerial RS485_2(RS485_2_RX, RS485_2_TX);
 HardwareSerial BAT_SERIAL(BATTERY_RX, BATTERY_TX);
 HardwareSerial EXP_SERIAL(EXPANSION_RX, EXPANSION_TX);
 FRAM9 fram;
+IS32FL3236A led_driver(LED_DRIVER_ADDRESS, SDB, &sensor_i2c);
+channel_led leds16(&led_driver);
+resistance_control res16(&leds16,channel_pins,&buffer[2],&buffer[0]);
+Neotimer resistance_timer(6);
 
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
@@ -94,25 +97,26 @@ void setup()
 
   setup_gpio();
   setup_pheripherals();
+
+  res16.setUsed(channel_needed_empty);
+  res16.setBlink(1);
+
 }
 
 void loop()
 {
   IWatchdog.reload();
+  res16.handler();
 }
 
 void convertADC()
 {
-  if (adc_new_data_ready == 1)
-  {
     vrefanalog = __HAL_ADC_CALC_VREFANALOG_VOLTAGE(buffer[0], ADC_RESOLUTION_12B);
     mcu_temp = __HAL_ADC_CALC_TEMPERATURE(vrefanalog, buffer[5], ADC_RESOLUTION_12B);
     board_temp = adcToTemperature(buffer[4]);
     cap_voltage = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[3], ADC_RESOLUTION_12B) * 11;
     ign_voltage = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[1], ADC_RESOLUTION_12B) * 11;
-    resistance = __HAL_ADC_CALC_DATA_TO_VOLTAGE(vrefanalog, buffer[2], ADC_RESOLUTION_12B) / 2 * 100;
-    adc_new_data_ready = 0;
-  }
+    
 }
 void setup_gpio()
 {
@@ -188,7 +192,9 @@ void setup_pheripherals()
   BAT_SERIAL.begin(38400);
   EXP_SERIAL.begin(38400);
 
-  if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS) == 0)
+  res16.init();
+
+  if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS) == 1)
   {
     display.clearDisplay();
     display.display();
@@ -198,29 +204,6 @@ void setup_pheripherals()
   {
     oled_ok = 0;
   }
-  
-
-  if (channel_leds.begin() == 1)
-  {
-    channel_leds.sleep(0);
-    channel_leds.setFrequency(1);
-    channel_leds.clear();
-    channel_leds.update();
-
-    for (int i = 0; i < 32; i++)
-    {
-      channel_leds.setLedParam(i, IS32FL3236A_IMAX, 1);
-      channel_leds.setLedPwm(i, 0);
-    }
-    channel_leds.update();
-
-    led_driver_ok = 1;
-  }
-  else
-  {
-    led_driver_ok = 0;
-  }
-  
 
   if (fram.begin(FRAM_ADDRESS, FRAM_WP) == 0)
   {
@@ -457,10 +440,6 @@ extern "C" void DMA1_Channel1_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
 
   /* USER CODE END DMA1_Channel1_IRQn 1 */
-}
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
-{
-  adc_new_data_ready = 1;
 }
 int16_t adcToTemperature(uint16_t adcValue)
 {
