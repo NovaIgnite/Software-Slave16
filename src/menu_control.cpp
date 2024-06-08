@@ -11,9 +11,6 @@ bool menu_control::init()
     draw_status_bar();                                                   // draw static part of the status bar
     return error;                                                        // send error back to system if any
 }
-void menu_control::handler()
-{
-}
 void menu_control::init_resistance_screen(res_screen *screen)
 {
     clear_dynamic_screen();
@@ -42,10 +39,31 @@ void menu_control::init_resistance_screen(res_screen *screen)
             resistance_counter++;
         }
     }
-    
+
     _display->display();
 }
+void menu_control::add_resistance(res_screen *screen)
+{
+    _display->setTextColor(WHITE);
+    _display->setTextSize(1);
 
+    uint8_t resistance_counter = 0;
+
+    for (int i = 0; i < 2; i++)
+    {
+        for (int c = 0; c < 4; c++)
+        {
+            _display->fillRect(38 + (i * 64), 22 + (c * 10),18,8,BLACK);
+            String buffer;
+            _display->setCursor(38 + (i * 64), 22 + (c * 10));
+            buffer = processOhm(screen->resistance[resistance_counter]);
+            _display->print(buffer);
+            resistance_counter++;
+        }
+    }
+
+    _display->display();   
+}
 void menu_control::draw_status_bar()
 {
     _display->drawLine(0, 20, 128, 20, WHITE);  // draw limiter line
@@ -363,7 +381,6 @@ String menu_control::processOhm(uint32_t value)
         return "MAX";
     }
 
-    SerialUSB.println(result);
 
     // Prepare a buffer to hold the formatted string
     char buffer[8]; // Enough space for "99.9" format plus null terminator

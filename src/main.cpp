@@ -67,8 +67,11 @@ bool fram_ok = 0; // flag if fram is okay
 
 bool channel_needed_empty[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-res_screen screen1;
+uint8_t selected_screen = 0;
+uint8_t selected_screen_old = -1;
 
+res_screen screen1;
+res_screen screen2;
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
@@ -84,8 +87,9 @@ FRAM9 fram;
 IS32FL3236A led_driver(LED_DRIVER_ADDRESS, SDB, &sensor_i2c);
 channel_led leds16(&led_driver);
 resistance_control res16(&leds16, channel_pins, &buffer[2], &buffer[0]);
-Neotimer resistance_timer(6);
 menu_control menu(&display);
+Neotimer test_timer(1000);
+Neotimer display_timer(5000);
 
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
@@ -110,6 +114,54 @@ void loop()
 {
   IWatchdog.reload();
   res16.handler();
+
+  if (test_timer.repeat())
+  {
+
+    if(selected_screen > 1)
+    {
+      selected_screen = 0;
+    }
+
+    if(selected_screen_old != selected_screen)
+    {
+      if(selected_screen == 0)
+      {
+        menu.init_resistance_screen(&screen1);
+      }
+      if(selected_screen == 1)
+      {
+        menu.init_resistance_screen(&screen2);
+      }
+      selected_screen_old = selected_screen;
+    }
+
+    uint32_t res_buffer[16];
+    res16.get_resistance(res_buffer);
+    if (selected_screen == 0)
+    {
+      for (int i = 0; i < 8; i++)
+      {
+        screen1.resistance[i] = res_buffer[i];
+        menu.add_resistance(&screen1);
+      }
+    }
+    if (selected_screen == 1)
+    {
+      for (int i = 0; i < 8; i++)
+      {
+        screen2.resistance[i] = res_buffer[i + 8];
+        menu.add_resistance(&screen2);
+      }
+    }
+  }
+
+  if(display_timer.repeat())
+  {
+    selected_screen ++;
+  }
+
+
 }
 
 void convertADC()
@@ -197,7 +249,7 @@ void setup_pheripherals()
   res16.init();
   menu.init();
   screen1.start_number = 1;
-  menu.init_resistance_screen(&screen1);
+  screen2.start_number = 9;
 
   if (fram.begin(FRAM_ADDRESS, FRAM_WP) == 0)
   {

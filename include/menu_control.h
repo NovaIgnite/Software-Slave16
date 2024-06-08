@@ -23,7 +23,14 @@ public:
     menu_control(Adafruit_SSD1306 *display);
     bool init();
     void init_resistance_screen(res_screen *screen);
-    void handler();
+    void add_resistance(res_screen *screen);
+    void set_status(uint8_t status);
+    void set_battery(uint8_t percentage);
+    void set_charging(bool charge);
+    void set_group(uint8_t letter);
+    void set_number(uint8_t number);
+    void set_status(uint8_t status);
+    void set_arm_status(uint8_t percentage);
 private:
     void clear_screen();
     void clear_dynamic_screen();
@@ -33,7 +40,9 @@ private:
     void draw_status(uint8_t status);
     void draw_device_number(uint8_t number);
     void draw_group_letter(uint8_t letter);
-
+    void draw_arm_screen();
+    void draw_network_screen();
+    void draw_connect_screen();
 
     String zeroPad(int number);
     String processOhm(uint32_t value);
