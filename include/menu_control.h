@@ -43,6 +43,8 @@ private:
     void draw_arm_screen();
     void draw_network_screen();
     void draw_connect_screen();
+    void draw_expansion_screen();
+    void draw_info_screen();
 
     String zeroPad(int number);
     String processOhm(uint32_t value);
