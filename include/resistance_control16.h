@@ -12,9 +12,9 @@ public:
     resistance_control(channel_led *led_channel, uint8_t pins[16], volatile uint16_t *resistance_buffer, volatile uint16_t *vrefanalog_buffer); // constructor with the led_driver, pins, adc_resistance and adc vref
     bool init();                                                                                                                                // init driver
     void handler();                                                                                                                             // handler needs to be called if new value should be generated
-    void get_resistance(uint32_t *channel_res[16]);                                                                                             // get the resistance
-    void get_ignitable(uint8_t *channel_ignitbale[16]);                                                                                         // get if a channel is ignitable
-    void get_unused(uint8_t *channel_unused[16]);                                                                                               // get i a channel is unused
+    void get_resistance(uint32_t channel_res[16]);                                                                                             // get the resistance
+    void get_ignitable(uint8_t channel_ignitbale[16]);                                                                                         // get if a channel is ignitable
+    void get_unused(uint8_t channel_unused[16]);                                                                                               // get i a channel is unused
     void setUsed(bool channel_needed[16]);                                                                                                      // set which channel is used
     void setBrightness(float brightness);                                                                                                       // set brightens                                                                                                                        // get if an error is received
     void resetCalculation();                                                                                                                    // reset the calculation

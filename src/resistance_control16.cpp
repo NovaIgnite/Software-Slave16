@@ -32,17 +32,17 @@ void resistance_control::handler()
 {
     calculate_resistance(); // calculate resistance
 }
-void resistance_control::get_resistance(uint32_t *channel_res[16])
+void resistance_control::get_resistance(uint32_t channel_res[16])
 {
-    copyArray32(_channel_res_avg, *channel_res, 16); // copy calculated resistance to array
+    copyArray32(_channel_res, channel_res, 16); // copy calculated resistance to array
 }
-void resistance_control::get_ignitable(uint8_t *channel_ignitbale[16])
+void resistance_control::get_ignitable(uint8_t channel_ignitbale[16])
 {
-    copyArray8(_channel_ignitbale, *channel_ignitbale, 16); // copy which channel is ignitable to array
+    copyArray8(_channel_ignitbale, channel_ignitbale, 16); // copy which channel is ignitable to array
 }
-void resistance_control::get_unused(uint8_t *channel_unused[16])
+void resistance_control::get_unused(uint8_t channel_unused[16])
 {
-    copyArray8(_channel_pop_unused, *channel_unused, 16); // copy which channel is unused to array
+    copyArray8(_channel_pop_unused, channel_unused, 16); // copy which channel is unused to array
 }
 void resistance_control::setUsed(bool channel_needed[16])
 {
