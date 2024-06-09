@@ -85,7 +85,7 @@ HardwareSerial RS485_1(RS485_1_RX, RS485_1_TX);
 HardwareSerial RS485_2(RS485_2_RX, RS485_2_TX);
 HardwareSerial BAT_SERIAL(BATTERY_RX, BATTERY_TX);
 HardwareSerial EXP_SERIAL(EXPANSION_RX, EXPANSION_TX);
-FRAM9 fram;
+FRAM11 fram;
 IS32FL3236A led_driver(LED_DRIVER_ADDRESS, SDB, &sensor_i2c);
 channel_led leds16(&led_driver);
 resistance_control res16(&leds16, channel_pins, &buffer[2], &buffer[0]);

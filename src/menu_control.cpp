@@ -42,6 +42,50 @@ void menu_control::init_resistance_screen(res_screen *screen)
 
     _display->display(); // send data to display
 }
+void menu_control::init_arm_screen_manual()
+{
+    clear_dynamic_screen();                    // clear the dynamic screen
+    _display->setTextColor(WHITE);             // set text color to white
+    _display->setTextSize(3);                  // set text size to very big
+    _display->setCursor(10, 22);               // set cursor under status bar
+    _display->print("ARMING");                 // print
+    _display->setTextSize(1);                  // set text size to small
+    _display->setCursor(4, 46);                // set cursor under big label
+    _display->print("HOLD MAGNET OVER SW!");   // print
+    _display->drawRect(12, 56, 102, 8, WHITE); // draw status bar
+    _display->display();                       // send to display
+    draw_arm_bar(0);                           // clear status bar
+}
+void menu_control::init_arm_screen()
+{
+    clear_dynamic_screen();                  // clear the dynamic screen
+    _display->setTextColor(WHITE);           // set text color to white
+    _display->setTextSize(3);                // set text size to very big
+    _display->setCursor(10, 28);             // set cursor under status bar and middle of y
+    _display->print("ARMED!");               // print
+    _display->setTextSize(1);                // set text size to small
+    _display->setCursor(4, 51);              // set cursor under big label
+    _display->print("USE MAGNET TO DISARM"); // print
+    _display->display();                     // send to display
+}
+void menu_control::init_disarm_screen()
+{
+    clear_dynamic_screen();                  // clear the dynamic screen
+    _display->setTextColor(WHITE);           // set text color to white
+    _display->setTextSize(3);                // set text size to very big
+    _display->setCursor(10, 28);             // set cursor under status bar and middle of y
+    _display->print("DISARM");               // print
+    _display->setTextSize(1);                // set text size to small
+    _display->setCursor(4, 51);              // set cursor under big label
+    _display->print("DISARMED SYSTEM SAFE"); // print
+    _display->display();                     // send to display
+}
+void menu_control::init_network_screen()
+{
+    clear_dynamic_screen();
+    
+
+}
 void menu_control::add_resistance(res_screen *screen)
 {
     _display->setTextColor(WHITE); // text color WHITE
@@ -103,44 +147,6 @@ void menu_control::set_group(uint8_t letter)
 void menu_control::set_device_number(uint8_t number)
 {
     draw_device_number(number); // device number setter
-}
-void menu_control::init_arm_screen_manual()
-{
-    clear_dynamic_screen();                    // clear the dynamic screen
-    _display->setTextColor(WHITE);             // set text color to white
-    _display->setTextSize(3);                  // set text size to very big
-    _display->setCursor(10, 22);               // set cursor under status bar
-    _display->print("ARMING");                 // print
-    _display->setTextSize(1);                  // set text size to small
-    _display->setCursor(4, 46);                // set cursor under big label
-    _display->print("HOLD MAGNET OVER SW!");   // print
-    _display->drawRect(12, 56, 102, 8, WHITE); // draw status bar
-    _display->display();                       // send to display
-    draw_arm_bar(0);                           // clear status bar
-}
-void menu_control::init_arm_screen()
-{
-    clear_dynamic_screen();                  // clear the dynamic screen
-    _display->setTextColor(WHITE);           // set text color to white
-    _display->setTextSize(3);                // set text size to very big
-    _display->setCursor(10, 28);             // set cursor under status bar and middle of y
-    _display->print("ARMED!");               // print
-    _display->setTextSize(1);                // set text size to small
-    _display->setCursor(4, 51);              // set cursor under big label
-    _display->print("USE MAGNET TO DISARM"); // print
-    _display->display();                     // send to display
-}
-void menu_control::init_disarm_screen()
-{
-    clear_dynamic_screen();                  // clear the dynamic screen
-    _display->setTextColor(WHITE);           // set text color to white
-    _display->setTextSize(3);                // set text size to very big
-    _display->setCursor(10, 28);             // set cursor under status bar and middle of y
-    _display->print("DISARM");               // print
-    _display->setTextSize(1);                // set text size to small
-    _display->setCursor(4, 51);              // set cursor under big label
-    _display->print("DISARMED SYSTEM SAFE"); // print
-    _display->display();                     // send to display
 }
 void menu_control::set_arm_status(uint8_t percentage)
 {
@@ -421,9 +427,9 @@ void menu_control::draw_arm_bar(uint8_t percentage)
 {
     if (percentage <= 100 && percentage >= 0) // check range of numbers
     {
-        _display->fillRect(13, 57, 100, 6, BLACK); // draw over old bar
+        _display->fillRect(13, 57, 100, 6, BLACK);        // draw over old bar
         _display->fillRect(13, 57, percentage, 6, WHITE); // draw a filled rect as the status bar from 0 to 100%
-        _display->display(); // send to display
+        _display->display();                              // send to display
     }
 }
 

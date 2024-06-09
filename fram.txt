@@ -1,0 +1,21 @@
+FRAM Size: 2048byte
+
+Configuration Size:         32 Bytes
+SHA256 Key Size:            32 Bytes
+
+Total size of fixed block:  64 Bytes
+
+MD5-Checksum at end of variable block: 16 Bytes
+Remaining size for variable block : 1968 Bytes
+
+
+1Bytes: CHANNEL-ID
+1Bytes: NUMBER OF IGNITIONS
+2Bytes: CONFIG
+3Bytes: IGNITION-TIME 1 
+3Bytes: IGNITION-TIME xxx
+
+
+
+
+

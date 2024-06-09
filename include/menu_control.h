@@ -24,6 +24,7 @@ public:
     void init_arm_screen_manual();
     void init_arm_screen();
     void init_disarm_screen();
+    void init_network_screen();
     void add_resistance(res_screen *screen);
     void set_status(uint8_t status);
     void set_battery(uint8_t percentage);
