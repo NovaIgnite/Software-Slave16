@@ -11,6 +11,7 @@
 #include <channel_led.h>
 #include <resistance_control16.h>
 #include <menu_control.h>
+#include <config.h>
 // include all libaries needed
 
 void SystemClock_Config(void)
@@ -255,7 +256,7 @@ void setup_pheripherals()
   menu.init();
   screen1.start_number = 1;
   screen2.start_number = 9;
-  menu.init_network_screen();
+  menu.init_info_screen();
 
   if (fram.begin(FRAM_ADDRESS, FRAM_WP) == 0)
   {

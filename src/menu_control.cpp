@@ -118,6 +118,23 @@ void menu_control::init_network_screen() // draw static part of the network scre
     set_network_cursor(0);
     // set default values
 }
+void menu_control::init_info_screen()
+{
+    clear_dynamic_screen();        // clear the dynamic screen
+    _display->setTextColor(WHITE); // set text color to white
+    _display->setTextSize(0);      // set text size to small
+
+    _display->setCursor(2, 22);                   // set cursor to right line
+    _display->printf("FIRMWARE INFORMATION:");    // print title
+    _display->setCursor(2, 32);                   // set cursor to right line
+    _display->printf("VERSION:%s", VERSION);      // print version
+    _display->setCursor(2, 42);                   // set cursor to right line
+    _display->printf("DATE   :%s", COMPILE_DATE); // print compile date
+    _display->setCursor(2, 52);                   // set cursor to right line
+    _display->printf("TIME   :%s", COMPILE_TIME); // print compile time
+
+    _display->display();
+}
 void menu_control::add_resistance(tres_screen *screen) // add dynamic parts of the resistance screen
 {
     _display->setTextColor(WHITE); // text color WHITE

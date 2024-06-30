@@ -8,6 +8,7 @@
 #include <Adafruit_SSD1306.h>
 #include <pins.h>
 #include <icons.h>
+#include <config.h>
 
 typedef struct res_screen
 {
