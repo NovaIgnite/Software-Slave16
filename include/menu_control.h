@@ -40,8 +40,9 @@ public:
     void init_arm_screen();
     void init_disarm_screen();
     void init_network_screen();
+    void init_info_screen();
     void add_resistance(tres_screen *screen);
-    void set_network_screen(tnetwork_screen *screen);
+    void add_network_screen(tnetwork_screen *screen);
     void set_status(uint8_t status);
     void set_battery(uint8_t percentage);
     void set_charging(bool charge);

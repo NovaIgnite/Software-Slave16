@@ -140,23 +140,16 @@ void menu_control::add_resistance(tres_screen *screen) // add dynamic parts of t
 
     _display->display(); // send data to display
 }
-void menu_control::draw_status_bar() // draw status bar of static screen
+void menu_control::add_network_screen(tnetwork_screen *screen) // updates newtork screen from the provided struct
 {
-    _display->drawLine(0, 20, 128, 20, WHITE);  // draw limiter line
-    _display->drawRect(95, 3, 30, 15, WHITE);   // draw battery rect
-    _display->drawLine(125, 7, 125, 13, WHITE); // draw battery +pole line 1
-    _display->drawLine(126, 7, 126, 13, WHITE); // draw battery +pole line 2
-    _display->drawLine(51, 2, 51, 18, WHITE);   // draw first separator
-    _display->drawLine(52, 2, 52, 18, WHITE);   // draw second separator
-    _display->drawLine(52, 10, 73, 10, WHITE);  // draw horizontal spacer
-    _display->drawLine(74, 2, 74, 18, WHITE);   // draws first second separator
-    _display->drawLine(75, 2, 75, 18, WHITE);   // draws second second separator
-
-    draw_device_number(0);           // draws --- as a placeholder in the device number spot
-    draw_battery_percentage(255, 0); // draws --- as a placeholder in the battery spot
-    draw_status(255);                // draws ---- as a placeholder in the status field
-    draw_transmission_indicator(5);  // draws --- as a placeholder in the transmission strength indicator
-    draw_group_letter(26);           // draws - as a placeholder in the group letter spot
+    draw_network_type(screen->device_type_A, 0); // draws type of attached device A
+    draw_network_type(screen->device_type_B, 0); // draws type of attached device B
+    draw_network_id(screen->id_A, 0);            // draws device ID of attached device A
+    draw_network_id(screen->id_B, 1);            // draws device ID of attached device B
+    draw_network_channel(screen->start_ch_A, 0); // draws start channel of attached device A
+    draw_network_channel(screen->start_ch_B, 1); // draws start channel of attached device
+    draw_network_enabled_text(screen->en_A, 0);  // draws if the device A is enabled
+    draw_network_enabled_text(screen->en_B, 0);  // draws if the device Bis enabled
 }
 void menu_control::set_status(uint8_t status) // setter function for the status
 {
@@ -204,17 +197,7 @@ void menu_control::set_network_cursor(bool AB) // draw the cursor for selecting 
 
     _display->display(); // print to screen
 }
-void menu_control::set_network_screen(tnetwork_screen *screen) // updates newtork screen from the provided struct
-{
-    draw_network_type(screen->device_type_A, 0); // draws type of attached device A
-    draw_network_type(screen->device_type_B, 0); // draws type of attached device B
-    draw_network_id(screen->id_A, 0);            // draws device ID of attached device A
-    draw_network_id(screen->id_B, 1);            // draws device ID of attached device B
-    draw_network_channel(screen->start_ch_A, 0); // draws start channel of attached device A
-    draw_network_channel(screen->start_ch_B, 1); // draws start channel of attached device
-    draw_network_enabled_text(screen->en_A, 0);  // draws if the device A is enabled
-    draw_network_enabled_text(screen->en_B, 0);  // draws if the device Bis enabled
-}
+
 // private Functions
 void menu_control::clear_screen() // clears the entire screen
 {
@@ -618,6 +601,24 @@ void menu_control::draw_network_enabled_text(bool en, bool AB) // draw the text 
     }
 
     _display->display();
+}
+void menu_control::draw_status_bar() // draw status bar of static screen
+{
+    _display->drawLine(0, 20, 128, 20, WHITE);  // draw limiter line
+    _display->drawRect(95, 3, 30, 15, WHITE);   // draw battery rect
+    _display->drawLine(125, 7, 125, 13, WHITE); // draw battery +pole line 1
+    _display->drawLine(126, 7, 126, 13, WHITE); // draw battery +pole line 2
+    _display->drawLine(51, 2, 51, 18, WHITE);   // draw first separator
+    _display->drawLine(52, 2, 52, 18, WHITE);   // draw second separator
+    _display->drawLine(52, 10, 73, 10, WHITE);  // draw horizontal spacer
+    _display->drawLine(74, 2, 74, 18, WHITE);   // draws first second separator
+    _display->drawLine(75, 2, 75, 18, WHITE);   // draws second second separator
+
+    draw_device_number(0);           // draws --- as a placeholder in the device number spot
+    draw_battery_percentage(255, 0); // draws --- as a placeholder in the battery spot
+    draw_status(255);                // draws ---- as a placeholder in the status field
+    draw_transmission_indicator(5);  // draws --- as a placeholder in the transmission strength indicator
+    draw_group_letter(26);           // draws - as a placeholder in the group letter spot
 }
 
 String menu_control::zeroPad(int number) // this function pads values from 0-999 with 0s
