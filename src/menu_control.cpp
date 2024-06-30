@@ -1,17 +1,18 @@
 #include <menu_control.h>
-
+// constructor
 menu_control::menu_control(Adafruit_SSD1306 *display)
 {
     _display = display; // make variable neat
 }
-bool menu_control::init()
+// public Functions
+bool menu_control::init() // initialisation of display
 {
-    uint8_t error = _display->begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS); // beginn and save error
+    uint8_t error = _display->begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS); // begin and save error
     clear_screen();                                                      // clear entire screen
     draw_status_bar();                                                   // draw static part of the status bar
     return error;                                                        // send error back to system if any
 }
-void menu_control::init_resistance_screen(res_screen *screen)
+void menu_control::init_resistance_screen(tres_screen *screen) // draw static part of resistance part
 {
     clear_dynamic_screen(); // clear the dynamic screen part
 
@@ -42,7 +43,7 @@ void menu_control::init_resistance_screen(res_screen *screen)
 
     _display->display(); // send data to display
 }
-void menu_control::init_arm_screen_manual()
+void menu_control::init_arm_screen_manual() // draw static part of the arm screen with a status bar
 {
     clear_dynamic_screen();                    // clear the dynamic screen
     _display->setTextColor(WHITE);             // set text color to white
@@ -56,7 +57,7 @@ void menu_control::init_arm_screen_manual()
     _display->display();                       // send to display
     draw_arm_bar(0);                           // clear status bar
 }
-void menu_control::init_arm_screen()
+void menu_control::init_arm_screen() // draw static part of the remote arm screen
 {
     clear_dynamic_screen();                  // clear the dynamic screen
     _display->setTextColor(WHITE);           // set text color to white
@@ -68,7 +69,7 @@ void menu_control::init_arm_screen()
     _display->print("USE MAGNET TO DISARM"); // print
     _display->display();                     // send to display
 }
-void menu_control::init_disarm_screen()
+void menu_control::init_disarm_screen() // draw static part of the disarm screen
 {
     clear_dynamic_screen();                  // clear the dynamic screen
     _display->setTextColor(WHITE);           // set text color to white
@@ -80,13 +81,44 @@ void menu_control::init_disarm_screen()
     _display->print("DISARMED SYSTEM SAFE"); // print
     _display->display();                     // send to display
 }
-void menu_control::init_network_screen()
+void menu_control::init_network_screen() // draw static part of the network screen
 {
-    clear_dynamic_screen();
-    
+    clear_dynamic_screen();                    // clear the dynamic screen
+    _display->setTextColor(WHITE);             // set text color to white
+    _display->setTextSize(0);                  // set text size to small
+    _display->drawLine(63, 20, 63, 64, WHITE); // draw the middle separator
 
+    _display->setCursor(8, 22);  // set cursor
+    _display->print("TYPE:");    // draw type
+    _display->setCursor(20, 32); // set cursor
+    _display->print("ID:");      // draw ID
+    _display->setCursor(2, 42);  // set cursor
+    _display->print("SRTCH:");   // draw start channel
+
+    _display->setCursor(72, 22); // set cursor
+    _display->print("TYPE:");    // draw type
+    _display->setCursor(84, 32); // set cursor
+    _display->print("ID:");      // draw ID
+    _display->setCursor(66, 42); // set cursor
+    _display->print("SRTCH:");   // draw start channel
+
+    _display->drawRect(2, 52, 60, 12, WHITE);  // draw left rectangle for enable button
+    _display->drawRect(66, 52, 60, 12, WHITE); // draw right rectangle for enable button
+
+    _display->display(); // display the static part
+
+    draw_network_type(255, 0);
+    draw_network_type(255, 1);
+    draw_network_id(0, 0);
+    draw_network_id(0, 1);
+    draw_network_channel(0, 0);
+    draw_network_channel(0, 1);
+    draw_network_enabled_text(0, 0);
+    draw_network_enabled_text(1, 1);
+    set_network_cursor(0);
+    // set default values
 }
-void menu_control::add_resistance(res_screen *screen)
+void menu_control::add_resistance(tres_screen *screen) // add dynamic parts of the resistance screen
 {
     _display->setTextColor(WHITE); // text color WHITE
     _display->setTextSize(1);      // set the text size to small
@@ -108,7 +140,7 @@ void menu_control::add_resistance(res_screen *screen)
 
     _display->display(); // send data to display
 }
-void menu_control::draw_status_bar()
+void menu_control::draw_status_bar() // draw status bar of static screen
 {
     _display->drawLine(0, 20, 128, 20, WHITE);  // draw limiter line
     _display->drawRect(95, 3, 30, 15, WHITE);   // draw battery rect
@@ -126,44 +158,75 @@ void menu_control::draw_status_bar()
     draw_transmission_indicator(5);  // draws --- as a placeholder in the transmission strength indicator
     draw_group_letter(26);           // draws - as a placeholder in the group letter spot
 }
-void menu_control::set_status(uint8_t status)
+void menu_control::set_status(uint8_t status) // setter function for the status
 {
     draw_status(status); // status setter
 }
-void menu_control::set_battery(uint8_t percentage)
+void menu_control::set_battery(uint8_t percentage) // setter function for battery percentage
 {
     _percentage = percentage;                        // save battery percentage
     draw_battery_percentage(_percentage, _charging); // set battery value with saved values
 }
-void menu_control::set_charging(bool charge)
+void menu_control::set_charging(bool charge) // setter function for setting the charging status
 {
     _charging = charge;                              // save charging value
     draw_battery_percentage(_percentage, _charging); // set battery value with saved values
 }
-void menu_control::set_group(uint8_t letter)
+void menu_control::set_group(uint8_t letter) // setter function for the group letter
 {
     draw_group_letter(letter); // group letter setter
 }
-void menu_control::set_device_number(uint8_t number)
+void menu_control::set_device_number(uint8_t number) // setter function for the device number
 {
     draw_device_number(number); // device number setter
 }
-void menu_control::set_arm_status(uint8_t percentage)
+void menu_control::set_arm_status(uint8_t percentage) // setter function for the arm bar of the manual arm screen
 {
     draw_arm_bar(percentage); // arm status bar setter
 }
+void menu_control::set_network_cursor(bool AB) // draw the cursor for selecting the A or B device and enable it
+{
+    _display->setTextColor(WHITE); // text color white
+    _display->setTextSize(1);      // small text
 
-void menu_control::clear_screen()
+    if (AB == 0) // check AB so left and right
+    {
+        _display->fillRect(6, 54, 12, 8, BLACK); // draw over old arrow
+        _display->setCursor(6, 54);              // set cursor
+        _display->print("->");                   // draw arrow
+    }
+    if (AB == 1) // check AB so left and right
+    {
+        _display->fillRect(70, 54, 12, 8, BLACK); // draw over old arrow
+        _display->setCursor(70, 54);              // set cursor
+        _display->print("->");                    // draw arrow
+    }
+
+    _display->display(); // print to screen
+}
+void menu_control::set_network_screen(tnetwork_screen *screen) // updates newtork screen from the provided struct
+{
+    draw_network_type(screen->device_type_A, 0); // draws type of attached device A
+    draw_network_type(screen->device_type_B, 0); // draws type of attached device B
+    draw_network_id(screen->id_A, 0);            // draws device ID of attached device A
+    draw_network_id(screen->id_B, 1);            // draws device ID of attached device B
+    draw_network_channel(screen->start_ch_A, 0); // draws start channel of attached device A
+    draw_network_channel(screen->start_ch_B, 1); // draws start channel of attached device
+    draw_network_enabled_text(screen->en_A, 0);  // draws if the device A is enabled
+    draw_network_enabled_text(screen->en_B, 0);  // draws if the device Bis enabled
+}
+// private Functions
+void menu_control::clear_screen() // clears the entire screen
 {
     _display->clearDisplay(); // clear the entire screen
     _display->display();      // send to display
 }
-void menu_control::clear_dynamic_screen()
+void menu_control::clear_dynamic_screen() // only clears the part under the status bar
 {
     _display->fillRect(0, 21, 128, 43, BLACK); // clear only part under status bar
     _display->display();                       // send to display
 }
-void menu_control::draw_transmission_indicator(uint8_t number)
+void menu_control::draw_transmission_indicator(uint8_t number) // draws the tranmission strength indicator, and also the wired symbol in the status bar
 {
     if (number <= 5 && number >= 0) // check if number is in range
     {
@@ -198,7 +261,7 @@ void menu_control::draw_transmission_indicator(uint8_t number)
         return;
     }
 }
-void menu_control::draw_battery_percentage(uint8_t percentage, bool charging)
+void menu_control::draw_battery_percentage(uint8_t percentage, bool charging) // draws the battery percentage in the status bar
 {
     _display->setTextSize(1); // small text
     if (charging == 0)        // if no charging is selected
@@ -228,7 +291,7 @@ void menu_control::draw_battery_percentage(uint8_t percentage, bool charging)
     }
     _display->display(); // send to display
 }
-void menu_control::draw_status(uint8_t status)
+void menu_control::draw_status(uint8_t status) // draws the status message in the status bar
 {
     _display->setTextColor(WHITE);           // text color white
     _display->setTextSize(2);                // text size bigger
@@ -305,7 +368,7 @@ void menu_control::draw_status(uint8_t status)
     }
     _display->display(); // send to display
 }
-void menu_control::draw_device_number(uint8_t number)
+void menu_control::draw_device_number(uint8_t number) // draws the device number in the status bar
 {
     _display->setTextColor(WHITE);           // text color white
     _display->setTextSize(1);                // small text
@@ -321,7 +384,7 @@ void menu_control::draw_device_number(uint8_t number)
     }
     _display->display(); // send to display
 }
-void menu_control::draw_group_letter(uint8_t letter)
+void menu_control::draw_group_letter(uint8_t letter) // draws the group letter in the status bar
 {
     _display->setTextColor(WHITE);           // text color white
     _display->setTextSize(1);                // small text
@@ -423,7 +486,7 @@ void menu_control::draw_group_letter(uint8_t letter)
         return;
     }
 }
-void menu_control::draw_arm_bar(uint8_t percentage)
+void menu_control::draw_arm_bar(uint8_t percentage) // draws the arm bar on the manual arm screen
 {
     if (percentage <= 100 && percentage >= 0) // check range of numbers
     {
@@ -432,8 +495,132 @@ void menu_control::draw_arm_bar(uint8_t percentage)
         _display->display();                              // send to display
     }
 }
+void menu_control::draw_network_type(uint8_t type, bool AB) // prints the type of detected slat box to the field
+{
+    _display->setTextColor(WHITE); // text color white
+    _display->setTextSize(1);      // small text
+    if (AB == 0)
+    {
+        _display->fillRect(38, 22, 24, 8, BLACK); // write over old letter
+        _display->setCursor(38, 22);              // set the cursor to the right place
+    }
+    if (AB == 1)
+    {
+        _display->fillRect(102, 22, 24, 8, BLACK); // write over old letter
+        _display->setCursor(102, 22);              // set the cursor to the right place
+    }
 
-String menu_control::zeroPad(int number)
+    switch (type) // switch for all the types
+    {
+    case 0:
+        _display->print("8CH"); // print 8 channel
+        break;
+    case 1:
+        _display->print("16CH"); // print 16 channel
+        break;
+    case 3:
+        _display->print("24CH"); // print 24 channel
+        break;
+    case 4:
+        _display->print("32CH"); // print 32 channel
+        break;
+    case 5:
+        _display->print("48CH"); // print 48 channel
+        break;
+    case 6:
+        _display->print("64CH"); // print 64 channel
+        break;
+    default:
+        _display->print("----"); // print placeholder
+        break;
+    }
+    _display->display(); // print to screen
+}
+void menu_control::draw_network_id(uint8_t id, bool AB) // prints the network id to the screen
+{
+    _display->setTextColor(WHITE); // text color white
+    _display->setTextSize(1);      // small text
+    if (AB == 0)
+    {
+        _display->fillRect(38, 32, 18, 8, BLACK); // write over old letter
+        _display->setCursor(38, 32);              // set the cursor to the right place
+    }
+    if (AB == 1)
+    {
+        _display->fillRect(102, 32, 18, 8, BLACK); // write over old letter
+        _display->setCursor(102, 32);              // set the cursor to the right place
+    }
+    if (id > 0) // check if id is valid
+    {
+        _display->print(zeroPad(id)); // print id of network device padded to 3 digits
+    }
+    else
+    {
+        _display->print("---"); // print --- as placeholder
+    }
+    _display->display(); // print to screen
+}
+void menu_control::draw_network_channel(uint8_t channel, bool AB) // prints the start channel to the screen
+{
+    _display->setTextColor(WHITE); // text color white
+    _display->setTextSize(1);      // small text
+    if (AB == 0)
+    {
+        _display->fillRect(38, 42, 18, 8, BLACK); // write over old letter
+        _display->setCursor(38, 42);              // set the cursor to the right place
+    }
+    if (AB == 1)
+    {
+        _display->fillRect(102, 42, 18, 8, BLACK); // write over old letter
+        _display->setCursor(102, 42);              // set the cursor to the right place
+    }
+    if (channel > 0) // check if start channel is valid
+    {
+        _display->print(zeroPad(channel)); // print start channel of network device padded to 3 digits
+    }
+    else
+    {
+        _display->print("---"); // print --- as placeholder
+    }
+    _display->display(); // print to screen
+}
+void menu_control::draw_network_enabled_text(bool en, bool AB) // draw the text if the power to the network is enabled or not
+{
+    _display->setTextColor(WHITE); // text color white
+    _display->setTextSize(1);      // small text
+    if (AB == 0)
+    {
+        _display->fillRect(22, 54, 36, 8, BLACK); // write over old letter
+        _display->setCursor(22, 54);              // set the cursor to the right place
+    }
+    if (AB == 1)
+    {
+        _display->fillRect(86, 54, 36, 8, BLACK); // write over old letter
+        _display->setCursor(86, 54);              // set the cursor to the right place
+    }
+
+    if (en == 0 && AB == 0)
+    {
+        _display->print("ENBL A");
+    }
+    if (en == 1 && AB == 0)
+    {
+        _display->print("A OPRT");
+    }
+
+    if (en == 0 && AB == 1)
+    {
+        _display->print("ENBL B");
+    }
+    if (en == 1 && AB == 1)
+    {
+        _display->print("B OPRT");
+    }
+
+    _display->display();
+}
+
+String menu_control::zeroPad(int number) // this function pads values from 0-999 with 0s
 {
     // Ensure the number is within the 0-999 range
     if (number < 0)
@@ -451,7 +638,7 @@ String menu_control::zeroPad(int number)
 
     return String(buffer);
 }
-String menu_control::processOhm(uint32_t value)
+String menu_control::processOhm(uint32_t value) // this function converts the calculated resistance values to drawable Strings
 {
     // Divide the value by 1000.0 to get the float result
     float result = value / 1000.0;

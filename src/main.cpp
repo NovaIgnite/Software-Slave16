@@ -255,7 +255,7 @@ void setup_pheripherals()
   menu.init();
   screen1.start_number = 1;
   screen2.start_number = 9;
-  menu.init_disarm_screen();
+  menu.init_network_screen();
 
   if (fram.begin(FRAM_ADDRESS, FRAM_WP) == 0)
   {
